@@ -5,6 +5,6 @@ guardar el nombre un codigo y dni, ademas de las fotos del formato fisico
 
 
 # Ejecutar
-'''bash
+```bash
 docker-compose up -d
-'''
+```
