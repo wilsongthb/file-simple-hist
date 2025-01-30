@@ -1,0 +1,4 @@
+./instance/historias_clinicas.db
+.session.vim
+**/__pycache__
+instance/historias_clinicas.db

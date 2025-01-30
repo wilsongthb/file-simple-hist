@@ -1,0 +1,18 @@
+services:
+  nginx:
+    image: nginx:1.27
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/var/www/html/
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf        
+    depends_on:
+      - web
+  web:
+    build: .
+    volumes:
+      - ./:/var/www/html/
+    ports:
+      - "127.0.0.1:8000:8000"
+    working_dir: /var/www/html/
+    command: "python app.py"
