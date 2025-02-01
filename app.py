@@ -4,20 +4,33 @@ import os
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///historias_clinicas.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///historias.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
 
+# Modelo de Historia Clínica
 class HistoriaClinica(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     anio = db.Column(db.Integer, nullable=False)
     codigo = db.Column(db.String(50), nullable=False)
     dni = db.Column(db.String(20), nullable=True)
-    imagen_frente = db.Column(db.String(200), nullable=False)
-    imagen_reverso = db.Column(db.String(200), nullable=False)
+    archivos = db.relationship('Archivo', backref='historia', lazy=True)
+
+# Modelo de Archivos
+class Archivo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    historia_id = db.Column(db.Integer, db.ForeignKey('historia_clinica.id'), nullable=False)
+    ruta = db.Column(db.String(200), nullable=False)
+
+
+@app.route('/lista', methods=['GET'])
+def list():
+    historias = HistoriaClinica.query.all()
+    return render_template('lista.html', historias=historias)
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -25,31 +38,32 @@ def index():
         nombre = request.form['nombre']
         anio = request.form['anio']
         codigo = request.form['codigo']
-        dni = request.form.get('dni', None)
-        
-        imagen_frente = request.files['imagen_frente']
-        imagen_reverso = request.files['imagen_reverso']
-        
-        if imagen_frente and imagen_reverso:
-            filename_frente = secure_filename(imagen_frente.filename)
-            filename_reverso = secure_filename(imagen_reverso.filename)
-            path_frente = os.path.join(app.config['UPLOAD_FOLDER'], filename_frente)
-            path_reverso = os.path.join(app.config['UPLOAD_FOLDER'], filename_reverso)
-            
-            imagen_frente.save(path_frente)
-            imagen_reverso.save(path_reverso)
-            
-            historia = HistoriaClinica(nombre=nombre, anio=anio, codigo=codigo, dni=dni,
-                                      imagen_frente=path_frente, imagen_reverso=path_reverso)
-            db.session.add(historia)
-            db.session.commit()
-            
-            return redirect(url_for('index'))
-    
-    historias = HistoriaClinica.query.all()
-    return render_template('index.html', historias=historias)
+        dni = request.form.get('dni')
+
+        nueva_historia = HistoriaClinica(nombre=nombre, anio=anio, codigo=codigo, dni=dni)
+        db.session.add(nueva_historia)
+        db.session.commit()
+
+        # Guardar imágenes
+        from logging import getLogger
+        log = getLogger("dev")
+        archivos = request.files
+        for keyarch in archivos:
+            archivo = request.files.get(keyarch)
+            if archivo and archivo.filename:
+                filename = secure_filename(archivo.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                archivo.save(filepath)
+
+                nuevo_archivo = Archivo(historia_id=nueva_historia.id, ruta=filepath)
+                db.session.add(nuevo_archivo)
+
+        db.session.commit()
+        return redirect(url_for('index'))
+    return render_template('index.html')
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    app.run(debug=True, host="0.0.0.0", port=8000)
+

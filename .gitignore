@@ -2,3 +2,4 @@
 .session.vim
 **/__pycache__
 instance/historias_clinicas.db
+instance/historias.db
